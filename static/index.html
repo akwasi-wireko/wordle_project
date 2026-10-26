@@ -202,7 +202,7 @@
         .key.yellow { background-color: var(--color-yellow) !important; }
         .key.gray { background-color: var(--color-gray) !important; }
 
-        /* Modal / Hint Panel */
+        /* Hint Modal Overlay */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -292,6 +292,47 @@
             font-weight: bold;
         }
 
+        /* End Game Modal Styles */
+        #game-over-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(3px);
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            animation: fadeIn 0.3s;
+        }
+        
+        .game-over-content {
+            background: var(--bg-color); 
+            color: var(--text-color);
+            padding: 30px 40px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--empty-border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transform: scale(1);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .game-over-content h2 { margin-top: 0; font-size: 36px; margin-bottom: 10px; }
+        
+        .game-over-content button {
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background: var(--color-green);
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        
+        .game-over-content button:hover { background: #6aaa64; }
+
         /* Animations */
         @keyframes popIn {
             0% { transform: scale(0.8); opacity: 0; }
@@ -306,24 +347,19 @@
             40%, 60% { transform: translateX(4px); }
         }
 
-        .flip-out {
-            animation: flipOut 0.25s ease-in forwards;
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .flip-in {
-            animation: flipIn 0.25s ease-out forwards;
-        }
+        .flip-out { animation: flipOut 0.25s ease-in forwards; }
+        .flip-in { animation: flipIn 0.25s ease-out forwards; }
 
         @keyframes flipOut {
             0% { transform: rotateX(0); }
             100% { transform: rotateX(-90deg); }
         }
-
         @keyframes flipIn {
             0% { transform: rotateX(90deg); }
             100% { transform: rotateX(0); }
         }
-
     </style>
 </head>
 <body>
@@ -352,6 +388,15 @@
                 <span id="words-remaining">...</span>
             </div>
             <ul id="suggestions"></ul>
+        </div>
+    </div>
+
+    <!-- End Game Modal -->
+    <div id="game-over-modal">
+        <div class="game-over-content">
+            <h2 id="game-over-title"></h2>
+            <p id="game-over-message"></p>
+            <button onclick="startGame()" id="play-again-btn">Play Again</button>
         </div>
     </div>
 
@@ -416,6 +461,13 @@
                 toast.style.opacity = '0';
                 setTimeout(() => toast.remove(), 300);
             }, duration);
+        }
+
+        function showGameOverModal(title, message) {
+            document.getElementById('game-over-title').innerText = title;
+            document.getElementById('game-over-message').innerText = message;
+            document.getElementById('game-over-modal').style.display = 'flex';
+            document.getElementById('play-again-btn').focus();
         }
 
         function handleKeyClick(key) {
@@ -549,10 +601,10 @@
                     
                     if (data.is_won) {
                         gameOver = true;
-                        showToast("Splendid!", 5000);
+                        showGameOverModal("Splendid! 🎉", "Great guessing!");
                     } else if (data.is_lost) {
                         gameOver = true;
-                        showToast("Game Over", 5000);
+                        showGameOverModal("Game Over", "Better luck next time!");
                     }
 
                     // Auto update hints if modal is open
@@ -581,6 +633,7 @@
                 initBoard();
                 initKeyboard();
                 closeModal();
+                document.getElementById('game-over-modal').style.display = 'none'; 
             } catch (err) {
                 showToast("Failed to start game");
             }
