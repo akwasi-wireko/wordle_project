@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wordle Solver Lab</title>
+    <style>
+        :root {
+            --bg-color: #121213;
+            --text-color: #ffffff;
+            --empty-border: #3a3a3c;
+            --filled-border: #565758;
+            --color-green: #538d4e;
+            --color-yellow: #b59f3b;
+            --color-gray: #3a3a3c;
+            --key-bg: #818384;
+            --key-bg-light: #d3d6da;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header & Controls */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--empty-border);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .header-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--filled-border);
+            transition: background 0.2s;
+            text-transform: uppercase;
+        }
+
+        .icon-btn:hover {
+            background: var(--empty-border);
+        }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .toast {
+            background-color: var(--text-color);
+            color: var(--bg-color);
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            opacity: 1;
+            transition: opacity 0.3s ease-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        /* Game Board */
+        .board-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        .board {
+            display: grid;
+            grid-template-rows: repeat(6, 1fr);
+            gap: 5px;
+            padding: 10px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+        }
+
+        .row.shake {
+            animation: shake 0.5s;
+        }
+
+        .tile {
+            width: 62px;
+            height: 62px;
+            border: 2px solid var(--empty-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: border-color 0.1s;
+        }
+
+        @media (max-width: 400px) {
+            .tile { width: 52px; height: 52px; font-size: 28px; }
+        }
+
+        /* Tile States */
+        .tile.filled {
+            border-color: var(--filled-border);
+            animation: popIn 0.1s;
+        }
+
+        .tile.green { background-color: var(--color-green) !important; border-color: var(--color-green) !important; }
+        .tile.yellow { background-color: var(--color-yellow) !important; border-color: var(--color-yellow) !important; }
+        .tile.gray { background-color: var(--color-gray) !important; border-color: var(--color-gray) !important; }
+
+        /* Keyboard */
+        #keyboard {
+            width: 100%;
+            max-width: 500px;
+            padding: 0 8px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .key-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .key {
+            flex: 1;
+            height: 58px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--key-bg);
+            color: var(--text-color);
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .key.wide {
+            flex: 1.5;
+            font-size: 12px;
+        }
+
+        .key:active {
+            transform: scale(0.95);
+        }
+
+        .key.green { background-color: var(--color-green) !important; }
+        .key.yellow { background-color: var(--color-yellow) !important; }
+        .key.gray { background-color: var(--color-gray) !important; }
+
+        /* Modal / Hint Panel */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(3px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background-color: var(--bg-color);
+            border: 1px solid var(--empty-border);
+            border-radius: 8px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 1px solid var(--empty-border);
+            padding-bottom: 10px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            background: var(--empty-border);
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        #suggestions {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .suggestion-item {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.05);
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 16px;
+        }
+
+        .entropy-badge {
+            background: var(--color-green);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* Animations */
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            40% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translateX(-2px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
+        }
+
+        .flip-out {
+            animation: flipOut 0.25s ease-in forwards;
+        }
+
+        .flip-in {
+            animation: flipIn 0.25s ease-out forwards;
+        }
+
+        @keyframes flipOut {
+            0% { transform: rotateX(0); }
+            100% { transform: rotateX(-90deg); }
+        }
+
+        @keyframes flipIn {
+            0% { transform: rotateX(90deg); }
+            100% { transform: rotateX(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <button class="icon-btn" onclick="startGame()" tabindex="-1">Restart</button>
+        <h1>Wordle</h1>
+        <button class="icon-btn" onclick="getHint()" tabindex="-1">Hint</button>
+    </header>
+
+    <div id="toast-container"></div>
+
+    <div class="board-container">
+        <div class="board" id="board"></div>
+    </div>
+
+    <div id="keyboard"></div>
+
+    <!-- Hint Modal -->
+    <div class="modal-overlay" id="hint-modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeModal(event)">✖</button>
+            <h3>Solver Suggestions</h3>
+            <div class="stat-row">
+                <span>Words Remaining:</span>
+                <span id="words-remaining">...</span>
+            </div>
+            <ul id="suggestions"></ul>
+        </div>
+    </div>
+
+    <script>
+        let currentRow = 0;
+        let currentGuess = "";
+        let keyColors = {}; 
+        let isAnimating = false;
+        let gameOver = false;
+
+        const layout = [
+            ['q','w','e','r','t','y','u','i','o','p'],
+            ['a','s','d','f','g','h','j','k','l'],
+            ['Enter','z','x','c','v','b','n','m','Backspace']
+        ];
+
+        function initBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            for (let i = 0; i < 6; i++) {
+                const row = document.createElement('div');
+                row.className = 'row';
+                row.id = `row-${i}`;
+                for (let j = 0; j < 5; j++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.id = `cell-${i}-${j}`;
+                    row.appendChild(tile);
+                }
+                board.appendChild(row);
+            }
+        }
+
+        function initKeyboard() {
+            const kb = document.getElementById('keyboard');
+            kb.innerHTML = '';
+            layout.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'key-row';
+                row.forEach(key => {
+                    const btn = document.createElement('button');
+                    btn.className = 'key' + (key.length > 1 ? ' wide' : '');
+                    btn.id = `key-${key}`;
+                    btn.innerText = key === 'Backspace' ? '⌫' : key;
+                    // Prevent button click from retaining focus
+                    btn.onmousedown = (e) => e.preventDefault();
+                    btn.onclick = () => handleKeyClick(key);
+                    rowDiv.appendChild(btn);
+                });
+                kb.appendChild(rowDiv);
+            });
+        }
+
+        function showToast(message, duration = 2000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function handleKeyClick(key) {
+            if (isAnimating || gameOver) return;
+
+            if (key === 'Enter') {
+                if (currentGuess.length === 5) {
+                    submitGuess();
+                } else {
+                    showToast("Not enough letters");
+                    shakeRow();
+                }
+                return;
+            }
+            if (key === 'Backspace') {
+                if (currentGuess.length > 0) {
+                    currentGuess = currentGuess.slice(0, -1);
+                    updateBoardDisplay(true); // true means deleting
+                }
+                return;
+            }
+            if (currentGuess.length < 5 && key.length === 1) {
+                currentGuess += key;
+                updateBoardDisplay(false);
+            }
+        }
+
+        function shakeRow() {
+            const row = document.getElementById(`row-${currentRow}`);
+            row.classList.remove('shake');
+            void row.offsetWidth; // Trigger reflow
+            row.classList.add('shake');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const key = e.key;
+            if (key === 'Enter' || key === 'Backspace') {
+                e.preventDefault(); 
+                handleKeyClick(key);
+            } else if (/^[a-zA-Z]$/.test(key)) {
+                e.preventDefault(); 
+                handleKeyClick(key.toLowerCase());
+            }
+        });
+
+        function updateBoardDisplay(isDeleting) {
+            for (let i = 0; i < 5; i++) {
+                const cell = document.getElementById(`cell-${currentRow}-${i}`);
+                const letter = currentGuess[i] || '';
+                
+                if (cell.innerText !== letter) {
+                    cell.innerText = letter;
+                    if (letter !== '') {
+                        cell.classList.add('filled');
+                    } else {
+                        cell.classList.remove('filled');
+                    }
+                }
+            }
+        }
+
+        function updateKeyboardColors(word, result) {
+            for (let i = 0; i < 5; i++) {
+                const char = word[i];
+                const status = result[i];
+                const currentStatus = keyColors[char];
+
+                if (status === 'green') {
+                    keyColors[char] = 'green';
+                } else if (status === 'yellow' && currentStatus !== 'green') {
+                    keyColors[char] = 'yellow';
+                } else if (status === 'gray' && currentStatus !== 'green' && currentStatus !== 'yellow') {
+                    keyColors[char] = 'gray';
+                }
+
+                const keyBtn = document.getElementById(`key-${char}`);
+                if (keyBtn) {
+                    keyBtn.classList.remove('green', 'yellow', 'gray');
+                    keyBtn.classList.add(keyColors[char]);
+                }
+            }
+        }
+
+        async function submitGuess() {
+            isAnimating = true;
+            const word = currentGuess;
+            
+            try {
+                const res = await fetch('/api/guess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ word })
+                });
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    showToast(data.detail || "Invalid word");
+                    shakeRow();
+                    isAnimating = false;
+                    return;
+                }
+
+                // Animate tiles flipping
+                for (let i = 0; i < 5; i++) {
+                    const cell = document.getElementById(`cell-${currentRow}-${i}`);
+                    
+                    // Wait for delay based on letter index
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    
+                    cell.classList.add('flip-out');
+                    
+                    setTimeout(() => {
+                        cell.classList.remove('flip-out');
+                        cell.classList.add(data.result[i]); // green, yellow, gray
+                        cell.classList.remove('filled'); // remove border style
+                        cell.classList.add('flip-in');
+                        
+                        setTimeout(() => {
+                            cell.classList.remove('flip-in');
+                        }, 250);
+                    }, 250);
+                }
+
+                // Wait for all flips to finish before moving on
+                setTimeout(() => {
+                    updateKeyboardColors(word, data.result);
+                    currentRow++;
+                    currentGuess = '';
+                    isAnimating = false;
+                    
+                    if (data.is_won) {
+                        gameOver = true;
+                        showToast("Splendid!", 5000);
+                    } else if (data.is_lost) {
+                        gameOver = true;
+                        showToast("Game Over", 5000);
+                    }
+
+                    // Auto update hints if modal is open
+                    if (document.getElementById('hint-modal').classList.contains('active')) {
+                        getHint();
+                    }
+                }, 1500);
+
+            } catch (err) {
+                showToast("Connection error");
+                shakeRow();
+                isAnimating = false;
+            }
+        }
+
+        async function startGame() {
+            if (document.activeElement) document.activeElement.blur();
+            
+            try {
+                await fetch('/api/start', { method: 'POST' });
+                currentRow = 0;
+                currentGuess = '';
+                keyColors = {};
+                isAnimating = false;
+                gameOver = false;
+                initBoard();
+                initKeyboard();
+                closeModal();
+            } catch (err) {
+                showToast("Failed to start game");
+            }
+        }
+
+        async function getHint() {
+            if (document.activeElement) document.activeElement.blur();
+            if (gameOver) {
+                showToast("Game is already finished");
+                return;
+            }
+
+            document.getElementById('words-remaining').innerText = "Loading...";
+            document.getElementById('suggestions').innerHTML = "";
+            document.getElementById('hint-modal').classList.add('active');
+
+            try {
+                const res = await fetch('/api/hint');
+                if (!res.ok) throw new Error("Failed to get hint");
+                const data = await res.json();
+                
+                document.getElementById('words-remaining').innerText = data.words_remaining;
+                
+                const ul = document.getElementById('suggestions');
+                ul.innerHTML = '';
+                data.suggestions.forEach(s => {
+                    const li = document.createElement('li');
+                    li.className = 'suggestion-item';
+                    
+                    const wordSpan = document.createElement('span');
+                    wordSpan.innerText = s.word.toUpperCase();
+                    
+                    const entropySpan = document.createElement('span');
+                    entropySpan.className = 'entropy-badge';
+                    entropySpan.innerText = s.entropy.toFixed(2);
+                    
+                    li.appendChild(wordSpan);
+                    li.appendChild(entropySpan);
+                    ul.appendChild(li);
+                });
+            } catch(e) {
+                document.getElementById('words-remaining').innerText = "Error";
+                showToast("Could not load hints");
+            }
+        }
+
+        function closeModal(e) {
+            if (e && e.target !== e.currentTarget) return; // Ignore clicks inside modal content
+            document.getElementById('hint-modal').classList.remove('active');
+        }
+
+        // Init on load
+        window.onload = startGame;
+    </script>
+</body>
+</html>

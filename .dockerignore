@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache and bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# IDEs and local settings
+.vscode/
+.idea/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Environment variables (Crucial for security)
+.env
+.env.*
+
+# Docker-related (Not needed inside the container)
+Dockerfile
+.dockerignore
